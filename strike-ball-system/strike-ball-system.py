@@ -1,11 +1,17 @@
 import cv2
+import logging
+from ultralytics.utils import LOGGER
 from ultralytics import YOLO
 import numpy as np
 import time
 
+LOGGER.setLevel(logging.ERROR)  # 경고(ERROR) 이상만 출력, 일반 메시지는 숨김
+
+# pt 파일 경로
+path = "/Users/gyuri/Documents/python/Capstone-Design/strike-ball-system/best.pt"
+
 # 모델 로드 - 홈플레이트/타자 인식 모델
-#model = YOLO('D:/python/best.pt')  # 경로에 맞게 수정
-model = YOLO('/Users/gyuri/Documents/python/Capstone-Design/best.pt')
+model = YOLO(path)
 
 # 웹캠에서 비디오 스트림 불러오기
 cap = cv2.VideoCapture(0)  # 0은 기본 웹캠, 다른 ID를 사용하려면 1, 2 등을 사용
@@ -26,19 +32,15 @@ fps = int(cap.get(cv2.CAP_PROP_FPS))
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+if fps == 0:
+    fps = 30  # 기본 FPS 설정
+
 # 출력 비디오 설정
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 # out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
 # ROI (공이 출현할 것으로 예상되는 영역) 설정
-#roi_x, roi_y, roi_width, roi_height = 700, 400, 100, 500
-# ROI 초기 설정 (공이 출현할 것으로 예상되는 영역)
-#initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 0, 400, 200, 500
-#임시 주석
-#initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 700, 400, 100, 500
-initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 150, 100, 70, 300
-#initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 600, 400, 100, 500
-#initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 0, 0, 200, 500
+initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 750, 100, 200, 800
 roi_x, roi_y, roi_width, roi_height = initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height
 roi_rect_color = (255, 0, 0)
 updata_roi = False  # ROI 업데이트 여부 플래그
@@ -93,9 +95,9 @@ while cap.isOpened():
     homeplate_box = None
     batter_box = None
 
-        # 탐지된 객체 확인 (홈플레이트와 타자만 저장)
+    # 홈플레이트 및 타자 감지
     for bbox, cls, conf in zip(results[0].boxes.xyxy, results[0].boxes.cls, results[0].boxes.conf):
-        if conf >= 0.2:  # 신뢰도 20% 이상
+        if conf >= 0.5:  # 신뢰도 50% 이상
             x1, y1, x2, y2 = map(int, bbox.tolist())
             label = "batter" if int(cls) == 0 else "homeplate"
 
@@ -108,6 +110,7 @@ while cap.isOpened():
                 batter_box = (x1, y1, x2, y2)
                 print("[LOG] Batter detected")  # 타자 감지 로그
 
+    # 스트라이크 존 설정 및 표시 
     # 홈플레이트와 타자가 감지된 경우 스트라이크 존 계산
     if homeplate_box and batter_box:
         hx1, hy1, hx2, hy2 = homeplate_box  # 홈플레이트 좌표
@@ -120,30 +123,30 @@ while cap.isOpened():
         # 타자의 신장 계산
         batter_height = by2 - by1
 
-        # 🔹 스트라이크 존 크기 설정
+        # 스트라이크 존 크기 설정
         strike_zone_width = int(homeplate_width * 1.5)  # 홈플레이트 너비의 1.5배
         strike_zone_height = int(batter_height * 0.6)  # 타자 키의 60%
 
-        # 🔹 스트라이크 존 위치 설정
+        # 스트라이크 존 위치 설정
         strike_zone_x1 = homeplate_center_x - strike_zone_width // 2
         strike_zone_x2 = homeplate_center_x + strike_zone_width // 2
         strike_zone_y1 = by1 + int(batter_height * 0.2)  # 타자의 20% 지점부터 시작
         strike_zone_y2 = strike_zone_y1 + strike_zone_height
 
-        # 🔹 스트라이크 존을 10초간 유지
+        # 스트라이크 존을 10초간 유지
         current_time = time.time()
-        if not strike_zone_active or (current_time - strike_zone_time > 10):
+        if not strike_zone_active or (current_time - strike_zone_time > 30):
             print("[LOG] Strike zone drawn")  # 스트라이크 존 감지 로그
             strike_zone_active = True
             strike_zone_time = current_time
 
-        # 🔹 스트라이크 존 그리기 (초록색 박스)
-        cv2.rectangle(next_frame, (strike_zone_x1, strike_zone_y1), (strike_zone_x2, strike_zone_y2), (0, 255, 0), 1)
+        # 스트라이크 존 그리기 (초록색 박스)
+        cv2.rectangle(next_frame, (strike_zone_x1, strike_zone_y1), (strike_zone_x2, strike_zone_y2), (0, 255, 0), 5)
         cv2.putText(next_frame, "Strike Zone", (strike_zone_x1, strike_zone_y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1)
     
     # 스트라이크 존이 10초 이상 유지되었으면 제거
-    elif strike_zone_active and (time.time() - strike_zone_time > 10):
+    elif strike_zone_active and (time.time() - strike_zone_time > 30):
         strike_zone_active = False  # 스트라이크 존 초기화
 
     # 관심 영역(ROI) 부분 추출
@@ -212,38 +215,6 @@ while cap.isOpened():
       roi_y = max(0, min(predicted_cy - 50, height - 100))
       roi_width, roi_height = 100, 100
       updata_roi = False
-
-    # # 예측 결과를 프레임에 그리기
-    # annotated_frame = results[0].plot()
-
-    # # 특정 영역에 추가적인 사각형 그리기 (필요 시 수정)
-    # cv2.rectangle(annotated_frame, (1000, 1000), (500, 500), (0, 255, 0), 10)
-
-    # # YOLO 결과로 curr_frame 덮어쓰기
-    # curr_frame = annotated_frame
-
-    # bounding box 좌표 출력 보류
-    # if results[0].boxes and len(results[0].boxes) > 0:
-    #     detected = False  # 감지 여부 플래그
-
-    #     for bbox, cls, conf in zip(results[0].boxes.xyxy, results[0].boxes.cls, results[0].boxes.conf):
-    #         if conf >= 0.3:  # 정확도가 50% 이상인 경우만 처리
-    #             detected = True
-    #             x1, y1, x2, y2 = map(int, bbox.tolist())
-    #             label = "batter" if int(cls) == 0 else "homeplate"  # 클래스 이름 결정
-    #             ## cv2.rectangle(curr_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    #             ## cv2.putText(curr_frame, f"{label} {conf:.2f}", (x1, y1 - 10),
-    #             ##      cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-
-    #             print("감지O")
-    #             print(f"객체: {label}, 정확도: {conf * 100:.2f}%, 좌표: {bbox.tolist()}")
-
-    #     if not detected:
-    #         print("감지된 객체가 없습니다.")  # 50% 이상인 객체가 없을 때 로그 출력
-    # else:
-    #     print("없음")  # 전체적으로 감지되지 않은 경우
-
-    #combined_frame = cv2.addWeighted(curr_frame, 0.5, annotated_frame, 0.5, 0)
 
     # 결과 프레임을 화면에 표시
     cv2.imshow("Ball Tracking & Detect", curr_frame)  # 추적 결과를 실시간으로 보여줌
