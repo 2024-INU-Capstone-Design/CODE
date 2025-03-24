@@ -14,7 +14,7 @@ path = "/Users/gyuri/Documents/python/Capstone-Design/strike-ball-system/best.pt
 model = YOLO(path)
 
 # 웹캠에서 비디오 스트림 불러오기
-cap = cv2.VideoCapture(0)  # 0은 기본 웹캠, 다른 ID를 사용하려면 1, 2 등을 사용
+cap = cv2.VideoCapture(1)  # 0은 기본 웹캠, 다른 ID를 사용하려면 1, 2 등을 사용
 
 if not cap.isOpened():
     print("Error: Unable to access the webcam.")
