@@ -3,22 +3,30 @@ import sys
 import time
 import cv2
 
-# 현재 Directory에 YOLO 모델 설치 및 설정
-os.system("git clone https://github.com/ultralytics/ultralytics")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# ultralytics 폴더가 없는 경우에만 git clone 실행
+ultralytics_dir = os.path.join(current_dir, "ultralytics")
+if not os.path.exists(ultralytics_dir):
+    print("ultralytics 폴더가 없습니다.")
+    os.system("git clone https://github.com/ultralytics/ultralytics")
+else:
+    print("ultralytics 폴더가 이미 있습니다.")
 
 # ultralytics 폴더로 이동
-os.chdir("ultralytics")
+os.chdir(os.path.join(current_dir, "ultralytics"))
 
 # 현재 위치에 "editable" 설정으로 패키지 설치
 os.system("pip install -e .")
 
 # ultralytics 모듈을 인식할 수 있도록 Windows 환경에 설치 경로 추가
-sys.path.append("C:/Users/USER/Desktop/ABS Challenge/CODE/strike-zone/ultralytics")
+sys.path.append(os.path.join(current_dir, "ultralytics"))
 
 from ultralytics import YOLO
 
 # model 불러와서 사용하기 (가중치 파일)
-model = YOLO(r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\yolo11_best.pt')
+model_path = os.path.join(current_dir, "yolo11_best.pt")
+model = YOLO(model_path)
 
 # baseball2 동영상으로
 # 입력 및 출력 동영상 경로 설정
@@ -27,8 +35,13 @@ model = YOLO(r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\yolo11_best.
 
 # baseball 동영상으로
 # 입력 및 출력 동영상 경로 설정
-input_video_path = r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\baseball2.mp4'
-output_video_path = r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\result2.mp4'
+
+# input_video_path = r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\baseball2.mp4'
+# output_video_path = r'C:\Users\USER\Desktop\ABS Challenge\CODE\strike-zone\result2.mp4'
+
+
+input_video_path = os.path.join(current_dir, 'baseball2.mp4')
+output_video_path = os.path.join(current_dir, 'result2.mp4')
 
 # 동영상 파일 로드
 cap = cv2.VideoCapture(input_video_path)
