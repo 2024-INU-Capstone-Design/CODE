@@ -35,6 +35,11 @@ ret2, prev_frame2 = cam2.read()
 ret1, curr_frame1 = cam1.read()
 ret2, curr_frame2 = cam2.read()
 
+blurred_value = 9
+kernel_value = 9
+diff_value = 19
+area_size = 50
+
 if not ret1 or not ret2:
     print("Error: Unable to read initial frames.")
     exit()
@@ -52,10 +57,10 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
     combined_diff = cv2.bitwise_and(diff1, diff2)
 
     gray_diff = cv2.cvtColor(combined_diff, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray_diff, (9, 9), 0)
-    _, roi_thresh = cv2.threshold(blurred, 19, 255, cv2.THRESH_BINARY)
+    blurred = cv2.GaussianBlur(gray_diff, (blurred_value, blurred_value), 0)
+    _, roi_thresh = cv2.threshold(blurred, diff_value, 255, cv2.THRESH_BINARY)
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_value, kernel_value))
     roi_thresh = cv2.morphologyEx(roi_thresh, cv2.MORPH_OPEN, kernel)
     roi_thresh = cv2.dilate(roi_thresh, kernel, iterations=1)
 
@@ -65,7 +70,7 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
     prediction = kalman.predict()
     predicted_cx, predicted_cy = int(prediction[0]), int(prediction[1])
 
-    if len(contours) == 1 and cv2.contourArea(contours[0]) > 50:
+    if len(contours) == 1 and cv2.contourArea(contours[0]) > area_size:
         contour = contours[0]
         M = cv2.moments(contour)
         cx = int(M['m10'] / M['m00']) + roi_x
@@ -75,18 +80,18 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
         cv2.circle(curr_frame, (cx, cy), 5, (0, 0, 255), -1)
         cv2.drawContours(curr_frame, [contour + (roi_x, roi_y)], -1, (0, 255, 0), 2)
 
-    elif len(contours) > 1 and cv2.contourArea(contours[0]) > 50:
+    elif len(contours) > 1:
         min_distance = float('inf')
         closest_contour = None
         for contour in contours:
-            if cv2.contourArea(contour) > 50:
+            if cv2.contourArea(contour) > area_size:
                 M = cv2.moments(contour)
                 cx = int(M['m10'] / M['m00']) + roi_x
                 cy = int(M['m01'] / M['m00']) + roi_y
                 distance = math.sqrt((predicted_cx - cx)**2 + 0.8 * (predicted_cy - cy)**2)
                 if distance < min_distance:
                     min_distance = distance
-                    closest_contour = (cx, cy, contour)
+                    closest_contour = (cx, cy, contour) 
 
         if closest_contour:
             cx, cy, contour = closest_contour
@@ -94,6 +99,7 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
             kalman.correct(measured)
             cv2.circle(curr_frame, (cx, cy), 5, (0, 0, 255), -1)
             cv2.drawContours(curr_frame, [contour + (roi_x, roi_y)], -1, (0, 255, 0), 2)
+
     else:
         roi_x, roi_y, roi_width, roi_height = initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height
 

@@ -3,7 +3,7 @@ import numpy as np
 import math
 
 # 비디오 파일 불러오기
-video_path = 'C:/baseball.mp4'  # 여기에서 테스트할 비디오 파일 경로를 입력하세요.
+video_path = 'C:/Users/ASUS/Downloads/baseball.mp4'  # 여기에서 테스트할 비디오 파일 경로를 입력하세요.
 cap = cv2.VideoCapture(video_path)
 
 # 비디오 속성 가져오기
@@ -13,8 +13,9 @@ height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # ROI (공이 출현할 것으로 예상되는 영역) 설정
 initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 700, 400, 100, 500
+#initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height = 100, 400, 100, 500
 roi_x, roi_y, roi_width, roi_height = initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height
-#roi_x, roi_y, roi_width, roi_height = 400, 400, 100, 500
+
 roi_rect_color = (255, 0, 0)
 updata_roi = False # ROI 업데이트 여부 플래그
 
