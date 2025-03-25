@@ -13,8 +13,8 @@ fps = 30
 width1, height1 = int(cam1.get(3)), int(cam1.get(4))
 width2, height2 = int(cam2.get(3)), int(cam2.get(4))
 
-initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1 = 100, 400, 100, 500
-initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2 = 100, 400, 100, 500
+initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1 = 0, 0, 100, 500
+initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2 = 0, 0, 100, 500
 roi1_x, roi1_y, roi1_width, roi1_height = initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1
 roi2_x, roi2_y, roi2_width, roi2_height = initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2
 
@@ -69,6 +69,8 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
 
     prediction = kalman.predict()
     predicted_cx, predicted_cy = int(prediction[0]), int(prediction[1])
+    
+    non_contours = 0
 
     if len(contours) == 1 and cv2.contourArea(contours[0]) > area_size:
         contour = contours[0]
@@ -101,12 +103,15 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
             cv2.drawContours(curr_frame, [contour + (roi_x, roi_y)], -1, (0, 255, 0), 2)
 
     else:
-        roi_x, roi_y, roi_width, roi_height = initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height
+        non_contours = 1
 
     cv2.circle(curr_frame, (predicted_cx, predicted_cy), 5, (255, 255, 0), -1)
 
-    roi_x = max(0, min(predicted_cx - roi_width // 2, width - roi_width))
-    roi_y = max(0, min(predicted_cy - roi_height // 2, height - roi_height))
+    if non_contours == 0:
+        roi_x = max(0, min(predicted_cx - roi_width // 2, width - roi_width))
+        roi_y = max(0, min(predicted_cy - roi_height // 2, height - roi_height))
+    else:
+        roi_x, roi_y, roi_width, roi_height = initial_roi_x, initial_roi_y, initial_roi_width, initial_roi_height
 
     cv2.rectangle(curr_frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), (255, 0, 0), 2)
 
