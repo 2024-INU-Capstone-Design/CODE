@@ -131,6 +131,43 @@ while True:
 
     if cv2.waitKey(int(1000 / fps)) & 0xFF == 27:
         break
+    
+    change_flag = 0
+
+    key = cv2.waitKey(int(1000 / fps)) & 0xFF
+
+    if key == 27:  # ESC
+        break
+    elif key == ord('d'):
+        blurred_value -= 2
+        kernel_value -= 2
+        if blurred_value < 1:
+            blurred_value = 1
+        if kernel_value < 1:
+            kernel_value = 1
+        change_flag = 1
+    elif key == ord('u'):
+        blurred_value += 2
+        kernel_value += 2
+        if blurred_value > 9:
+            blurred_value = 9
+        if kernel_value > 9:
+            kernel_value = 9
+        change_flag = 1
+    elif key == ord('s'):
+        area_size -= 3
+        if area_size < 20:
+            area_size = 20
+        change_flag = 1
+    elif key == ord('w'):
+        area_size += 3
+        if area_size > 60:
+            area_size = 60
+        change_flag = 1
+    
+    
+    if change_flag == 1:
+        print(f"blurred_value: {blurred_value}, kernel_value: {kernel_value}, area_size: {area_size}")
 
     prev_frame1, curr_frame1 = curr_frame1, next_frame1
     prev_frame2, curr_frame2 = curr_frame2, next_frame2
