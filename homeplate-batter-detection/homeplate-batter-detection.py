@@ -1,3 +1,4 @@
+import os
 import cv2
 import logging
 from ultralytics.utils import LOGGER
@@ -9,7 +10,9 @@ import time
 
 LOGGER.setLevel(logging.ERROR)
 
-path = "/Users/gyuri/Documents/python/Capstone-Design/strike-ball-system/final_best.pt"
+# 경로 불러오기
+current_dir = os.path.dirname(os.path.abspath(__file__))
+path = os.path.join(current_dir, "final_best.pt")
 
 # 모델 로드
 model = YOLO(path)
@@ -105,7 +108,7 @@ while cap.isOpened():
     cv2.imshow("Homplate-Batter-Detection", next_frame)
 
     # ESC 키를 누르면 종료
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
     prev_frame = curr_frame
