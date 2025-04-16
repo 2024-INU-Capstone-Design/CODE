@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ABS 시스템</title>
+</head>
+<body>
+    <h2>실시간 홈플레이트/타자 감지</h2>
+    <img src="{{ url_for('video_feed') }}" width="960" height="540">
+
+     <!-- 🎯 추가된 미니맵 / 판정용 Canvas -->
+    <canvas id="canvas" width="300" height="240" style="border:1px solid black; margin-top: 20px;"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+ 
+         function draw(data) {
+             ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+             // 스트존 박스 (작은 미니맵용)
+             ctx.strokeStyle = "white";
+             ctx.lineWidth = 2;
+             ctx.strokeRect(75, 45, 150, 150);  // x, y, width, height
+ 
+             // 공 위치
+             if (data.ball) {
+                 ctx.fillStyle = data.is_strike ? "green" : "red";
+                 ctx.beginPath();
+                 ctx.arc(data.ball.x, data.ball.y, 8, 0, Math.PI * 2);
+                 ctx.fill();
+             }
+ 
+             // 판정 결과 텍스트
+             ctx.fillStyle = data.is_strike ? "green" : "red";
+             ctx.font = "bold 20px Arial";
+             ctx.fillText(data.is_strike ? "STRIKE" : "BALL", 10, 30);
+         }
+ 
+         // 0.3초마다 감지 데이터 받아서 그림
+         setInterval(() => {
+             fetch("/data")
+                 .then(res => res.json())
+                 .then(draw)
+                 .catch(console.error);
+         }, 300);
+    </script>
+</body>
+</html>
