@@ -15,14 +15,19 @@ def get_K_dist(side):
         dist = np.array([0.174451816407887, -0.516395174012713, 0, 0, 0], dtype=np.float32)
     return K, dist
 
-# 2) Extrinsic via Look-At (camera→world)
-def get_extrinsics_lookat(side, X=10.0, H=1.0):
+# 2) Extrinsic via fixed azimuth angles
+def get_extrinsics_by_angle(side, distance=10.0, height=1.0, angle_deg=60.0):
+    θ = np.deg2rad(angle_deg)
     if side == 'left':
-        C = np.array([-X, H, 0.0], dtype=np.float32)
+        az = θ
     else:
-        C = np.array([X, H, 0.0], dtype=np.float32)
+        az = -θ
 
-    forward = -C  # camera → 원점
+    # 카메라 위치
+    C = np.array([distance * np.sin(az), height, distance * np.cos(az)], dtype=np.float32)
+
+    # 카메라가 바라보는 방향 (월드 기준)
+    forward = np.array([-np.sin(az), 0, -np.cos(az)], dtype=np.float32)  # Z축 기준 -60도, +60도 방향
     forward /= np.linalg.norm(forward)
 
     up = np.array([0, 1, 0], dtype=np.float32)
@@ -38,13 +43,13 @@ def pixel_to_cam_dir(u, v, K, dist):
     pt = np.array([[[u, v]]], dtype=np.float32)
     und = cv2.undistortPoints(pt, K, dist, P=None)
     x_norm, y_norm = und[0, 0]
-    dir_cam = np.array([x_norm, -y_norm, 1.0], dtype=np.float32)  # y-up 보정
+    dir_cam = np.array([x_norm, -y_norm, 1.0], dtype=np.float32)
     return dir_cam / np.linalg.norm(dir_cam)
 
 # 4) 클릭 → 오차 계산
 def click_and_compute(image_path, side):
-    K, dist     = get_K_dist(side)
-    C, Rcw_look = get_extrinsics_lookat(side)
+    K, dist = get_K_dist(side)
+    C, Rcw = get_extrinsics_by_angle(side)
 
     img = cv2.imread(image_path)
     if img is None:
@@ -65,32 +70,32 @@ def click_and_compute(image_path, side):
         return None
 
     u, v = coords[0]
-    cam_dir   = pixel_to_cam_dir(u, v, K, dist)
-    world_dir = Rcw_look @ cam_dir
+    cam_dir = pixel_to_cam_dir(u, v, K, dist)
+    world_dir = Rcw @ cam_dir
     world_dir /= np.linalg.norm(world_dir)
 
-    ideal_vec = -C  # 카메라 위치 → 원점
+    # 이상적 방향벡터 (카메라 위치에서 홈플레이트를 향한 벡터)
+    ideal_vec = -C
     ideal_dir = ideal_vec / np.linalg.norm(ideal_vec)
 
-    # Azimuth (방위각)
     az_world = np.arctan2(world_dir[0], world_dir[2])
     az_ideal = np.arctan2(ideal_dir[0], ideal_dir[2])
     delta_deg = np.degrees(az_world - az_ideal)
-    delta_deg = (delta_deg + 180) % 360 - 180  # [-180, 180] 범위로 정규화
+    delta_deg = (delta_deg + 180) % 360 - 180
 
     print(f"\n[{side.upper()} CAMERA]")
     print(f" 클릭 픽셀: (u={u}, v={v})")
     print(f" cam_dir:    {cam_dir}")
     print(f" world_dir:  {world_dir}")
     print(f" ideal_dir:  {ideal_dir}")
-    print(f" 절대 azimuth ▶ world={np.degrees(az_world):.2f}°, ideal={np.degrees(az_ideal):.2f}°")
-    print(f" 상대 방위 오프셋: {delta_deg:+.2f}°")
+    print(f" azimuth → world={np.degrees(az_world):.2f}°, ideal={np.degrees(az_ideal):.2f}°")
+    print(f" 방위각 오차: {delta_deg:+.2f}°")
     return delta_deg
 
 if __name__ == '__main__':
     eL = click_and_compute('directionvector/left2.png', 'left')
     eR = click_and_compute('directionvector/right2.png', 'right')
-    print("\n=== 최종 방위 오프셋 ===")
+    print("\n=== 최종 방위 오차 ===")
     if eL is not None:
         print(f" 왼쪽 카메라:  {eL:.3f}°")
     if eR is not None:
