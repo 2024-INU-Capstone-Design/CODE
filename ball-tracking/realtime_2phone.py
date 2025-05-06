@@ -20,7 +20,7 @@ width2, height2 = int(cam2.get(3)), int(cam2.get(4))
 
 # 각 카메라의 관심영역 설정정
 initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1 = 0, 60, 200, 250
-initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2 = width2 - initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1
+initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2 = width2 - initial_roi_x_1 - initial_roi_width_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1
 roi1_x, roi1_y, roi1_width, roi1_height = initial_roi_x_1, initial_roi_y_1, initial_roi_width_1, initial_roi_height_1
 roi2_x, roi2_y, roi2_width, roi2_height = initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2
 #관심영역 색색
@@ -257,6 +257,8 @@ while True:
         roi2_x, roi2_y, roi2_width, roi2_height = initial_roi_x_2, initial_roi_y_2, initial_roi_width_2, initial_roi_height_2
         kalman1 = init_kalman(0,0)
         kalman2 = init_kalman(width2,0)
+        update_roi_1 = False
+        update_roi_2 = False
         Draw_line = False
     elif key == ord('t'):
         #저장된 좌표들 칼만필터와 평균값으으로 더 정교화 시킴
