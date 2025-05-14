@@ -326,8 +326,20 @@ def compute_line_points(x0, y0, slope, y_min, y_max):
 
 #3d 좌표 계산산
 def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_az_deg_homplate, angle2_az_deg_baseball,angle1_el_deg_homeplate,angle1_el_deg_baseball,angle2_el_deg_homeplate,angle2_el_deg_baseball):
-    angle1_deg = 60 + abs(angle1_az_deg_homplate) - abs(angle1_az_deg_baseball)
-    angle2_deg = 60 + abs(angle2_az_deg_homplate) - abs(angle2_az_deg_baseball)
+    print(f"\n [CAMERA]")
+    print(f"  angle1_az_deg_homeplate:  {angle1_az_deg_homplate:+.2f}°")
+    print(f"  angle1_az_deg_baseball:  {angle1_az_deg_baseball:+.2f}°")
+    print(f"  angle2_az_deg_homplate:  {angle2_az_deg_homplate:+.2f}°")
+    print(f"  angle2_az_deg_baseball:  {angle2_az_deg_baseball:+.2f}°")
+    print(f"  angle1_el_deg_homeplate:  {angle1_el_deg_homeplate:+.2f}°")
+    print(f"  angle1_el_deg_baseball:  {angle1_el_deg_baseball:+.2f}°")
+    print(f"  aangle2_el_deg_homeplate:  {angle2_el_deg_homeplate:+.2f}°")
+    print(f"  angle2_el_deg_baseball:  {angle2_el_deg_baseball:+.2f}°")
+    
+    
+    
+    angle1_deg = 60 - abs(angle1_az_deg_homplate) + abs(angle1_az_deg_baseball)
+    angle2_deg = 60 - abs(angle2_az_deg_homplate) + abs(angle2_az_deg_baseball)
 
     # 기울기 계산 (90 - angle), 왼쪽 카메라는 음수
     slope1 = np.tan(np.radians(90 - angle1_deg))      # 오른쪽 카메라: 양수 기울기
@@ -348,13 +360,9 @@ def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_a
     
     # z값 각도 (degree)
     angle1_between = abs(angle1_el_deg_homeplate) - 5.94 # 여기서 5.94는 이제 tan104/1000 계산값값  
-    angle1_baseball = abs(angle1_el_deg_baseball) - angle1_between
-
-    angle2_between = abs(angle2_el_deg_homeplate) - 5.94 # 여기서 5.94는 이제 tan104/1000 계산값값  
-    angle2_baseball = abs(angle2_el_deg_baseball) - angle2_between
+    angle1_baseball = abs(angle1_el_deg_baseball) - abs(angle1_between)
 
     final_target_height = 0
-    final_target_height_2 = 0
     target_z = 0
 
     if abs(denominator) < 1e-6:
@@ -366,16 +374,15 @@ def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_a
         # 거리
         distance = math.sqrt((x1_start - intersection_point[0])**2 + (y1_start - intersection_point[1])**2)
         target_height = math.tan(math.radians(angle1_baseball)) * distance
-        target_height_2 = math.tan(math.radians(angle2_baseball)) * distance
         final_target_height = 104 - target_height
-        final_target_height_2 = 104 - target_height_2
-        target_z = (final_target_height + final_target_height_2)/2
+        target_z = final_target_height
     
     return intersection_point[0], intersection_point[1], target_z
 
 
-def visualize_3d_point(point_1):
+def visualize_3d_point(point_1, point_2):
     x, y, z = point_1
+    xx, yy, zz = point_2
 
     # 카메라 시작점
     x1_start, y1_start, z1 = 500 * np.sqrt(3), 500, 104
@@ -396,10 +403,15 @@ def visualize_3d_point(point_1):
     ax.plot([x1_start, x], [y1_start, y], [z1, z], color='blue', linestyle='dotted')
     ax.plot([x2_start, x], [y2_start, y], [z2, z], color='green', linestyle='dotted')
 
+    ax.plot([x1_start, xx], [y1_start, yy], [z1, zz], color='blue', linestyle='dotted')
+    ax.plot([x2_start, xx], [y2_start, yy], [z2, zz], color='green', linestyle='dotted')
+
     # 교차점
     ax.scatter(x, y, z, color='purple', s=50, label='3D Intersection Point')
     ax.text(x + 10, y + 10, z + 10, f"({x:.2f}, {y:.2f}, {z:.2f})", color='purple')
-
+    ax.scatter(xx, yy, zz, color='purple', s=50, label='3D Intersection Point')
+    ax.text(xx + 10, yy + 10, zz + 10, f"({xx:.2f}, {yy:.2f}, {zz:.2f})", color='purple')
+    
     # 홈플레이트 좌표
     plate = [[21.6, 0, 0], [-21.6, 0, 0], [21.6, -30.48, 0], [-21.6, -30.48, 0], [0, -45.98, 0]]
     ax.plot([plate[0][0], plate[1][0]], [plate[0][1], plate[1][1]], [0, 0], color='orange', linewidth=2)
@@ -448,7 +460,7 @@ angle1_az_deg_homplate, angle1_el_deg_homeplate = compute_angles('left', middle_
 angle2_az_deg_homplate, angle2_el_deg_homeplate = compute_angles('right', middle_point_2)
 
 yolo_enabled = True
-#타자 키키
+#타자 키
 min_batter_height = height2
 while True:
     
@@ -565,6 +577,11 @@ while True:
     if angle1_az_deg_baseball_1 is not None and angle2_az_deg_baseball_1 is not None:    
         point_1 = calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball_1, angle2_az_deg_homplate, angle2_az_deg_baseball_1,angle1_el_deg_homeplate,angle1_el_deg_baseball_1,angle2_el_deg_homeplate,angle2_el_deg_baseball_1)
 
+    # 월드 좌표계에서의의 각도 (degree)
+    if angle1_az_deg_baseball_2 is not None and angle2_az_deg_baseball_2 is not None:    
+        point_2 = calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball_2, angle2_az_deg_homplate, angle2_az_deg_baseball_2,angle1_el_deg_homeplate,angle1_el_deg_baseball_2,angle2_el_deg_homeplate,angle2_el_deg_baseball_2)
+
+
 
     if key == 27:  # ESC
         break
@@ -599,11 +616,8 @@ while True:
         roi_2_enable = False
         ball_trace_2.clear()
     elif key == ord('k'):   
-        if point_1:
-            visualize_3d_point(point_1)       
-        #홈플레이트 좌표 초기화 -> 만약 카메라가 넘어져서 처음부터 시작할 때 누르기.
-        #homeplate_points_1 = None
-        #homeplate_points_2 = None
+        if point_1 and point_2:
+            visualize_3d_point(point_1, point_2)       
     elif key == ord('y'):
         # yolo on/off
         if yolo_enabled:
@@ -612,7 +626,10 @@ while True:
         else:
             yolo_enabled = True
             min_batter_height = height2
-
+    elif key == ord('i'):
+        #홈플레이트 좌표 초기화 -> 만약 카메라가 넘어져서 처음부터 시작할 때 누르기.
+        homeplate_points_1 = None
+        homeplate_points_2 = None
     cv2.imshow("Camera 1 Real-Time Tracking", frame1)
     cv2.imshow("Camera 2 Real-Time Tracking", frame2)
 
