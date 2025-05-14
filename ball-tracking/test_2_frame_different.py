@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 
 # 동영상 파일 불러오기
-video_path_1 = "subin_640_480.mp4"  # 여기에 사용하고 싶은 동영상 경로 입력
-video_path_2 = "hynseo_640_480.mp4"
+video_path_1 = "5-13/cam2_50fps.mp4"  # 여기에 사용하고 싶은 동영상 경로 입력
+video_path_2 = "5-13/cam1_50fps.mp4"
 
 #수빈 폰
 cap1 = cv2.VideoCapture(video_path_1)
@@ -178,7 +178,7 @@ update_roi_1 = False
 update_roi_2 = False
 
 kernel_value = 5
-diff_value = 2
+diff_value = 4
 
 def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_height, width, height, kalman, ball_trace, update_roi, value, Dead_line):
 
@@ -225,7 +225,7 @@ def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_
     for contour in contours:
         area = cv2.contourArea(contour)
         # 야구공이 크면 area > 50으로
-        if area > 70 and area < 150:
+        if area > 120 and area < 250:
             flag2 = 1
             M = cv2.moments(contour)
             cx = int(M['m10'] / M['m00'])
