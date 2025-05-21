@@ -326,6 +326,7 @@ def compute_line_points(x0, y0, slope, y_min, y_max):
 
 #3d 좌표 계산산
 def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_az_deg_homplate, angle2_az_deg_baseball,angle1_el_deg_homeplate,angle1_el_deg_baseball,angle2_el_deg_homeplate,angle2_el_deg_baseball):
+<<<<<<< HEAD
     # print(f"\n [CAMERA]")
     # print(f"  angle1_az_deg_homeplate:  {angle1_az_deg_homplate:+.2f}°")
     # print(f"  angle1_az_deg_baseball:  {angle1_az_deg_baseball:+.2f}°")
@@ -335,6 +336,17 @@ def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_a
     # print(f"  angle1_el_deg_baseball:  {angle1_el_deg_baseball:+.2f}°")
     # print(f"  aangle2_el_deg_homeplate:  {angle2_el_deg_homeplate:+.2f}°")
     # print(f"  angle2_el_deg_baseball:  {angle2_el_deg_baseball:+.2f}°")
+=======
+    print(f"\n [CAMERA]")
+    print(f"  angle1_az_deg_homeplate:  {angle1_az_deg_homplate:+.2f}°")
+    print(f"  angle1_az_deg_baseball:  {angle1_az_deg_baseball:+.2f}°")
+    print(f"  angle2_az_deg_homplate:  {angle2_az_deg_homplate:+.2f}°")
+    print(f"  angle2_az_deg_baseball:  {angle2_az_deg_baseball:+.2f}°")
+    print(f"  angle1_el_deg_homeplate:  {angle1_el_deg_homeplate:+.2f}°")
+    print(f"  angle1_el_deg_baseball:  {angle1_el_deg_baseball:+.2f}°")
+    print(f"  aangle2_el_deg_homeplate:  {angle2_el_deg_homeplate:+.2f}°")
+    print(f"  angle2_el_deg_baseball:  {angle2_el_deg_baseball:+.2f}°")
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
     
     
     
@@ -380,6 +392,7 @@ def calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball, angle2_a
     return intersection_point[0], intersection_point[1], target_z
 
 
+<<<<<<< HEAD
 def visualize_3d_point(point_1, point_2):    
     # 방향벡터
     dir_vector = point_2 - point_1
@@ -424,6 +437,9 @@ def visualize_3d_point(point_1, point_2):
     if intersection is not None:
         ax.scatter(intersection[0], intersection[1], intersection[2], color='red', s=50, label='Intersection')
     
+=======
+def visualize_3d_point(point_1, point_2):
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
     x, y, z = point_1
     xx, yy, zz = point_2
 
@@ -656,8 +672,12 @@ def check_line_intersection_with_plane_and_plot(point1, point2):
 
 # YOLO on/off flag
 yolo_enabled = True
+<<<<<<< HEAD
 
 # 타자 키(픽셀)
+=======
+#타자 키
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
 min_batter_height = height2
 
 # 타자 키(실제)
@@ -783,7 +803,12 @@ while True:
     # 월드 좌표계에서의의 각도 (degree)
     if angle1_az_deg_baseball_2 is not None and angle2_az_deg_baseball_2 is not None:    
         point_2 = calculate_3d_points(angle1_az_deg_homplate, angle1_az_deg_baseball_2, angle2_az_deg_homplate, angle2_az_deg_baseball_2,angle1_el_deg_homeplate,angle1_el_deg_baseball_2,angle2_el_deg_homeplate,angle2_el_deg_baseball_2)
+<<<<<<< HEAD
         p2 = np.array([point_2[0], point_2[1], point_2[2]])
+=======
+
+
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
 
     if key == 27:  # ESC
         break
@@ -819,11 +844,15 @@ while True:
         ball_trace_2.clear()
     elif key == ord('k'):   
         if point_1 and point_2:
+<<<<<<< HEAD
             print(point_1[0], point_1[1], point_1[2])
             print(point_2[0], point_2[1], point_2[2])
             combined_visualization(p1, p2, bottom_of_strike_zone, top_of_strike_zone)
             #check_line_intersection_with_plane_and_plot(p1, p2)
             #visualize_3d_point(p1, p2)       
+=======
+            visualize_3d_point(point_1, point_2)       
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
     elif key == ord('y'):
         # yolo on/off
         if yolo_enabled:
@@ -836,6 +865,7 @@ while True:
         #홈플레이트 좌표 초기화 -> 만약 카메라가 넘어져서 처음부터 시작할 때 누르기.
         homeplate_points_1 = None
         homeplate_points_2 = None
+<<<<<<< HEAD
     elif key == ord('h'):         
             real_height = float(input("키를 입력하세요: "))
             top_of_strike_zone = float(real_height * 0.5635)
@@ -844,6 +874,8 @@ while True:
                 print(real_height)
                 print(top_of_strike_zone)
                 print(bottom_of_strike_zone)
+=======
+>>>>>>> a36374cd188f20e2ae6876eafe0c4adbbedc7cf2
     cv2.imshow("Camera 1 Real-Time Tracking", frame1)
     cv2.imshow("Camera 2 Real-Time Tracking", frame2)
 
