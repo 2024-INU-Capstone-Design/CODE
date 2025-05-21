@@ -23,11 +23,8 @@ def get_extrinsics_by_angle(side, distance=10.0, height=1.0, angle_deg=60.0):
     else:
         az = -θ
 
-    # 카메라 위치
     C = np.array([distance * np.sin(az), height, distance * np.cos(az)], dtype=np.float32)
-
-    # 카메라가 바라보는 방향 (월드 기준)
-    forward = np.array([-np.sin(az), 0, -np.cos(az)], dtype=np.float32)  # Z축 기준 -60도, +60도 방향
+    forward = np.array([np.sin(az), 0, np.cos(az)], dtype=np.float32)
     forward /= np.linalg.norm(forward)
 
     up = np.array([0, 1, 0], dtype=np.float32)
@@ -55,28 +52,47 @@ def click_and_compute(image_path, side):
     if img is None:
         raise FileNotFoundError(image_path)
 
-    coords = []
-    def on_click(evt, x, y, flags, param):
-        if evt == cv2.EVENT_LBUTTONDOWN:
-            coords.append((x, y))
+    clone = img.copy()
+    selected = [img.shape[1] // 2, img.shape[0] // 2 + 240]  # 초기 위치 (중앙)
+
+    def draw_cursor(img, pos):
+        temp = img.copy()
+        cv2.drawMarker(temp, tuple(pos), (0, 0, 255), markerType=cv2.MARKER_CROSS,
+                       markerSize=15, thickness=1)
+        return temp
+
+    cv2.imshow(f"{side} Click", draw_cursor(clone, selected))
+
+    while True:
+        key = cv2.waitKeyEx(0)
+        if key == 27:  # ESC
+            print(f"[{side}] 취소됨")
             cv2.destroyAllWindows()
+            return None
+        elif key in [13, 10]:  # Enter
+            break
+        elif key == 2490368:  # ↑
+            selected[1] = max(0, selected[1] - 1)
+        elif key == 2621440:  # ↓
+            selected[1] = min(img.shape[0] - 1, selected[1] + 1)
+        elif key == 2424832:  # ←
+            selected[0] = max(0, selected[0] - 1)
+        elif key == 2555904:  # →
+            selected[0] = min(img.shape[1] - 1, selected[0] + 1)
 
-    cv2.imshow(f"{side} Click", img)
-    cv2.setMouseCallback(f"{side} Click", on_click)
-    cv2.waitKey(0)
+        cv2.imshow(f"{side} Click", draw_cursor(clone, selected))
 
-    if not coords:
-        print(f"[{side}] 클릭 없음")
-        return None
-
-    u, v = coords[0]
+    cv2.destroyAllWindows()
+    u, v = selected
     cam_dir = pixel_to_cam_dir(u, v, K, dist)
     world_dir = Rcw @ cam_dir
     world_dir /= np.linalg.norm(world_dir)
 
-    # 이상적 방향벡터 (카메라 위치에서 홈플레이트를 향한 벡터)
-    ideal_vec = -C
-    ideal_dir = ideal_vec / np.linalg.norm(ideal_vec)
+    if side == 'left':
+        ideal_dir = np.array([+8.66, 1.0, 5.0], dtype=np.float32)
+    else:
+        ideal_dir = np.array([-8.66, 1.0, 5.0], dtype=np.float32)
+    ideal_dir /= np.linalg.norm(ideal_dir)
 
     az_world = np.arctan2(world_dir[0], world_dir[2])
     az_ideal = np.arctan2(ideal_dir[0], ideal_dir[2])
@@ -91,6 +107,7 @@ def click_and_compute(image_path, side):
     print(f" azimuth → world={np.degrees(az_world):.2f}°, ideal={np.degrees(az_ideal):.2f}°")
     print(f" 방위각 오차: {delta_deg:+.2f}°")
     return delta_deg
+
 
 if __name__ == '__main__':
     eL = click_and_compute('directionvector/left2.png', 'left')

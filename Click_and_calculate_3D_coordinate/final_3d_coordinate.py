@@ -172,7 +172,7 @@ if intersection_point is not None:
 #홈플레이트 좌표
 point = [[21.6, 0,0], [-21.6, 0,0], [21.6, -30.48,0], [-21.6, -30.48,0],[0,-45.98,0]]
 
-ax.plot([point[0][0], point[1][0]], [point[0][1], point[1][1]], [point[0][2], point[1][2]],  color='orange', linestyle='-', linewidth=2, label='Custom Line')
+ax.plot([point[0][0], point[1][0]], [point[0][1], point[1][1]], [point[0][2], point[1][2]], color='orange', linestyle='-', linewidth=2, label='Custom Line')
 ax.plot([point[0][0], point[2][0]], [point[0][1], point[2][1]], [point[0][2], point[2][2]], color='orange', linestyle='-', linewidth=2)
 ax.plot([point[1][0], point[3][0]], [point[1][1], point[3][1]], [point[1][2], point[3][2]], color='orange', linestyle='-', linewidth=2)
 ax.plot([point[2][0], point[4][0]], [point[2][1], point[4][1]], [point[2][2], point[4][2]], color='orange', linestyle='-', linewidth=2)

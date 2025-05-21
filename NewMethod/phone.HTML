@@ -1,0 +1,38 @@
+<!-- index.html (iPhone에서 실행) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>iPhone Camera Stream</title>
+</head>
+<body>
+  <h3>📱 iPhone 카메라 스트리밍</h3>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <script>
+    const pc = new RTCPeerConnection();
+    const ws = new WebSocket('ws://' + location.hostname + ':8765');
+
+    async function start() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      document.getElementById('localVideo').srcObject = stream;
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+    }
+
+    pc.onicecandidate = event => {
+      if (event.candidate) return;
+      ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }));
+    };
+
+    ws.onmessage = async event => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'answer') {
+        await pc.setRemoteDescription(msg.sdp);
+      }
+    };
+
+    start();
+  </script>
+</body>
+</html>
