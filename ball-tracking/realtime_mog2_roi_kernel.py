@@ -4,14 +4,46 @@ import math
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import time
 
 # 카메라 실시간으로 화면 가져옴.
 cam1 = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 cam2 = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
+
 if not cam1.isOpened() or not cam2.isOpened():
     print("Failed to open one or both cameras")
     exit()
+
+
+# MOG2 배경 제거기 생성
+mog2_1 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
+mog2_2 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
+
+
+#수정
+#mog2_1 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)
+#mog2_2 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)
+
+# --- 초기 배경 학습 ---
+print("learning background")
+start_time = time.time()
+while time.time() - start_time < 10:
+    ret1, frame1 = cam1.read()
+    ret2, frame2 = cam2.read()
+    if not ret1 or not ret2:
+        continue
+    mog2_1.apply(frame1)
+    mog2_2.apply(frame2)
+    cv2.putText(frame1, "don't throw baseball", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+    cv2.putText(frame2, "don't throw baseball", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+    cv2.imshow("Camera 1 Real-Time Tracking", frame1)
+    cv2.imshow("Camera 2 Real-Time Tracking", frame2)
+    if cv2.waitKey(1) & 0xFF == 27:
+        break
+
+print("[INFO] 배경 학습 완료. 공을 던지세요!")
+
 
 
 # 프레임 및 카메라 1,2 너비, 높이 정보 불러옴.
@@ -29,7 +61,7 @@ roi2_x, roi2_y, roi2_width, roi2_height = initial_roi_x_2, initial_roi_y_2, init
 roi_rect_color = (255, 0, 0)
 
 # Dead_line 설정
-Dead_line = 480
+Dead_line = 500
 Draw_line = True
 
 
@@ -62,7 +94,6 @@ ret2, curr_frame2 = cam2.read()
 
 fps = 60
 
-blurred_value = 7#수정
 kernel_value = 5#수정
 diff_value = 1
 
@@ -73,98 +104,112 @@ update_roi_1 = False
 update_roi_2 = False
 
 
+#learning rate
+learning_rate = 0.0  # 처음엔 학습 OFF 상태
+
 def track_ball(prev_frame, curr_frame, next_frame, roi_x, roi_y, roi_width, roi_height, width, height, kalman, ball_trace, update_roi, value):
     prev_roi = prev_frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
     curr_roi = curr_frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
     next_roi = next_frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
 
+
+    # === (1) 프레임 차분 기반 ===
     diff1 = cv2.absdiff(prev_roi, curr_roi)
     diff2 = cv2.absdiff(curr_roi, next_roi)
     combined_diff = cv2.bitwise_and(diff1, diff2)
-
     gray_diff = cv2.cvtColor(combined_diff, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray_diff, (blurred_value, blurred_value), 0)
-    _, roi_thresh = cv2.threshold(blurred, diff_value, 255, cv2.THRESH_BINARY)
+    _, thresh_diff = cv2.threshold(gray_diff, diff_value, 255, cv2.THRESH_BINARY)
+
+    # === (2) MOG2 배경 제거 ===
+    fg_mask_full = mog2_1.apply(curr_frame, learningRate=learning_rate) if value == 0 else mog2_2.apply(curr_frame, learningRate=learning_rate)
+    fg_mask_roi = fg_mask_full[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
+
+    # === (3) 두 결과 결합 ===
+    roi_thresh = cv2.bitwise_and(thresh_diff, fg_mask_roi)
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_value, kernel_value))
     roi_thresh = cv2.morphologyEx(roi_thresh, cv2.MORPH_OPEN, kernel)
     roi_thresh = cv2.dilate(roi_thresh, kernel, iterations=1)
 
-    # ROI 영역을 비디오에 표시
-    cv2.rectangle(curr_frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), roi_rect_color, 2)
 
     # 위치 선 그리기
     if Draw_line:
       if value == 0:
         cv2.line(curr_frame, (Dead_line, 0), (Dead_line, height), (0, 255, 255), 2)  # 노란색 세로선
-    # 칼만 필터 예측값 계산
+      else:
+        cv2.line(curr_frame, (width - Dead_line, 0), (width - Dead_line, height), (0, 255, 255), 2)  # 노란색 세로선
 
-    prediction = kalman.predict()
-    predicted_cx, predicted_cy = int(prediction[0].item()), int(prediction[1].item())
-    
-    contours, _ = cv2.findContours(roi_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    measured = None
-
-    # 윤관석이 1개 이상 검출 되었는지 확인. 왜냐하면 공은 하나니깐 여러개 검출되면 처리할려고
-    flag = 0
-    if len(contours) > 1:
-      flag = 1
-    
-    # 칼만 필터가 예측한 좌표와 제일 가까운 좌표 저장 변수.
+    #칼만필터 예측 좌표 저장장
     predict_x = None
     predict_y = None
-    min_distance = width**2
-    select_contour = None
 
-    # 야구공 윤곽선 추출 되었는지 확인
-    flag2 = 0
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        # 야구공이 크면 area > 50으로
-        if area > 120 and area < 400:
-            M = cv2.moments(contour)
-            cx = int(M['m10'] / M['m00'])
-            cy = int(M['m01'] / M['m00'])
-            print(f"area = {area}")
-            # ROI 내의 좌표를 전체 프레임의 좌표로 변환
-            global_cx = cx + roi_x
-            global_cy = cy + roi_y
+    # ROI 영역을 비디오에 표시
+    if learning_rate == 0.0:
+        cv2.rectangle(curr_frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), roi_rect_color, 2)
+        prediction = kalman.predict()
+        predicted_cx, predicted_cy = int(prediction[0].item()), int(prediction[1].item())
+    
+        contours, _ = cv2.findContours(roi_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        measured = None
 
-            # 제일 가까운 좌표 구하기
-            if flag == 1:
-              distance = math.sqrt((global_cx - predicted_cx)**2 + (global_cy - predicted_cy)**2)
-              if distance < min_distance:
-                min_distance = distance
-                predict_x = global_cx
-                predict_y = global_cy
-                select_contour = contour
-                flag2 = 1
-            else:
-              predict_x = global_cx
-              predict_y = global_cy
-              select_contour = contour
-              flag2 = 1
+        # 윤관석이 1개 이상 검출 되었는지 확인. 왜냐하면 공은 하나니깐 여러개 검출되면 처리할려고
+        flag = 0
+        if len(contours) > 1:
+            flag = 1
+    
+        # 칼만 필터가 예측한 좌표와 제일 가까운 좌표 저장 변수.
+        min_distance = width**2
+        select_contour = None
 
-    if flag2 == 1:
-      measured = np.array([[np.float32(predict_x)], [np.float32(predict_y)]])
+        # 야구공 윤곽선 추출 되었는지 확인
+        flag2 = 0
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            # 야구공이 크면 area > 50으로
+            if area > 20 and area < 250:
+                M = cv2.moments(contour)
+                cx = int(M['m10'] / M['m00'])
+                cy = int(M['m01'] / M['m00'])
+                print(f"area = {area}")
+                # ROI 내의 좌표를 전체 프레임의 좌표로 변환
+                global_cx = cx + roi_x
+                global_cy = cy + roi_y
 
-      # 칼만 필터에 측정값 설정
-      kalman.correct(measured)
-      update_roi = True
+                # 제일 가까운 좌표 구하기
+                if flag == 1:
+                    distance = math.sqrt((global_cx - predicted_cx)**2 + (global_cy - predicted_cy)**2)
+                    if distance < min_distance:
+                        min_distance = distance
+                        predict_x = global_cx
+                        predict_y = global_cy
+                        select_contour = contour
+                        flag2 = 1
+                else:
+                    predict_x = global_cx
+                    predict_y = global_cy
+                    select_contour = contour
+                    flag2 = 1
 
-      # 공 중심점 표시
-      cv2.circle(curr_frame, (predict_x, predict_y), 5, (0, 0, 255), -1)
-      if select_contour is not None:
-        cv2.drawContours(curr_frame, [select_contour + (roi_x, roi_y)], -1, (0, 255, 0), 2)
+        if flag2 == 1:
+            measured = np.array([[np.float32(predict_x)], [np.float32(predict_y)]])
 
-    # 예측 위치에 원 그리기
-    cv2.circle(curr_frame, (predicted_cx, predicted_cy), 5, (255, 255, 0), -1)  # 노란색 예측 점
+            # 칼만 필터에 측정값 설정
+            kalman.correct(measured)
+            update_roi = True
 
-    # 오른족족
-    if update_roi  and 0 <= predicted_cx < width and 0 <= predicted_cy < height:
-      roi_x = max(0, min(predicted_cx - roi_width // 2, width - roi_width))
-      roi_y = max(0, min(predicted_cy - roi_height // 2, height - roi_height))
-      roi_width, roi_height = 500, 300
+            # 공 중심점 표시
+            cv2.circle(curr_frame, (predict_x, predict_y), 5, (0, 0, 255), -1)
+            if select_contour is not None:
+                cv2.drawContours(curr_frame, [select_contour + (roi_x, roi_y)], -1, (0, 255, 0), 2)
+
+        # 예측 위치에 원 그리기
+        cv2.circle(curr_frame, (predicted_cx, predicted_cy), 5, (255, 255, 0), -1)  # 노란색 예측 점
+
+        # 오른족족
+        if update_roi  and 0 <= predicted_cx < width and 0 <= predicted_cy < height:
+            roi_x = max(0, min(predicted_cx - roi_width // 2, width - roi_width))
+            roi_y = max(0, min(predicted_cy - roi_height // 2, height - roi_height))
+            roi_width, roi_height = 500, 300
     
 
     if ball_trace is not None:
@@ -362,12 +407,12 @@ def visualize_3d_point(point_3d, left_point, right_point, degree = 2):
         z_pred = np.polyval(coeffs_z, y_pred)
 
         # 예측 궤적 그리기
-        ax.plot(x_pred, y_pred, z_pred, color='purple', linewidth=2, label='Predicted Trajectory')
+        #ax.plot(x_pred, y_pred, z_pred, color='purple', linewidth=2, label='Predicted Trajectory')
         x_at_y0 = np.polyval(coeffs_x, 0)
         z_at_y0 = np.polyval(coeffs_z, 0)
         
         # 스트라이크 존 범위 기준 (x, z 좌표 범위)
-        strike_x_min, strike_x_max = -21.6, 21.6  # cm
+        strike_x_min, strike_x_max = -23, 23  # cm
         strike_z_min, strike_z_max = bottom_of_strike_zone, top_of_strike_zone  # cm
 
         # 스트라이크 존 판별
@@ -417,7 +462,7 @@ def visualize_3d_point(point_3d, left_point, right_point, degree = 2):
         z_range[1] - z_range[0]
     ])
     # 시점 각도 설정 (elev: 위/아래, azim: 좌/우)
-    ax.view_init(elev=8, azim=70)
+    ax.view_init(elev=0, azim=90)
     ax.legend()
     ax.grid(True)
     # ==== 비율 고정 ====
@@ -463,9 +508,13 @@ while True:
     frame2, roi2_x, roi2_y, update_roi_2, xxx, yyy = track_ball(prev_frame2, curr_frame2, next_frame2, roi2_x, roi2_y, roi2_width, roi2_height, width2, height2, kalman2, ball_trace_2,  update_roi_2,1)
 
     if xx is not None and xxx is not None:
-       ball_trace_1.append([xx,yy])
-       ball_trace_2.append([xxx,yyy])
+       if xx < Dead_line and xxx > width2 - Dead_line:
+        ball_trace_1.append([xx,yy])
+        ball_trace_2.append([xxx,yyy])
 
+
+
+        
     cv2.imshow("Camera 1 Real-Time Tracking", frame1)
     cv2.imshow("Camera 2 Real-Time Tracking", frame2)
 
@@ -500,8 +549,7 @@ while True:
         angle2_az_right, angle2_el_right = compute_angles('right',[homeplate_points_1[1]])
         left_point = calculate_3d_points(angle1_az_deg_homplate, angle1_az_left, angle2_az_deg_homplate, angle2_az_left,angle1_el_deg_homeplate,angle1_el_left)
         right_point = calculate_3d_points(angle1_az_deg_homplate, angle1_az_right, angle2_az_deg_homplate, angle2_az_right,angle1_el_deg_homeplate,angle1_el_right)
-        print(left_point)
-        print(right_point)
+        
     elif key == ord('k'):
         for point1, point2 in zip(ball_trace_1, ball_trace_2):
                 angle1_az_deg_baseball, angle1_el_deg_baseball = compute_angles('left', [(point2[0], point2[1])])
@@ -519,7 +567,15 @@ while True:
                 print(real_height)
                 print(top_of_strike_zone)
                 print(bottom_of_strike_zone)
-    
+    elif key == ord('a'):
+        # 스위칭
+        if learning_rate == 0.0:
+            learning_rate = 0.15  # 자동 학습 모드 ON
+            #learning_rate = -1 # 수정
+            print("[INFO] MOG2 학습 ON (자동 학습)")
+        else:
+            learning_rate = 0.0  # 학습 OFF
+            print("[INFO] MOG2 학습 OFF (정지)")
     prev_frame1, curr_frame1 = curr_frame1, next_frame1
     prev_frame2, curr_frame2 = curr_frame2, next_frame2
 
