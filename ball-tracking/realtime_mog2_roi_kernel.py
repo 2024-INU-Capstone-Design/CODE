@@ -17,13 +17,13 @@ if not cam1.isOpened() or not cam2.isOpened():
 
 
 # MOG2 배경 제거기 생성
-mog2_1 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
-mog2_2 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
+#mog2_1 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
+#mog2_2 = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=25, detectShadows=False)
 
 
 #수정
-#mog2_1 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)
-#mog2_2 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=50, detectShadows=False)
+mog2_1 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=100, detectShadows=False)
+mog2_2 = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=100, detectShadows=False)
 
 # --- 초기 배경 학습 ---
 print("learning background")
